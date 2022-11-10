@@ -9,6 +9,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 
+
+
 SOURCE_PCD =  o3d.io.read_triangle_mesh(r"/Users/beril/PycharmProjects/pythonProject2/files/3.ply")
 pcd = SOURCE_PCD.sample_points_poisson_disk(number_of_points = 10000)
 pcdd = copy.deepcopy(pcd)
@@ -63,9 +65,15 @@ o3d.visualization.draw_geometries([pcl])
 o3d.visualization.draw_geometries([rest])
 
 
+pcn = o3d.geometry.PointCloud()
+pcn=rest
+
+
+
 pcd_tree = o3d.geometry.KDTreeFlann(pcl)
 distances = np.max(pcl.compute_nearest_neighbor_distance())
-
+distances2 = np.min(pcl.compute_nearest_neighbor_distance())
+blacks = []
 
 #holds data of each black points neighbours
 dic = []
@@ -75,66 +83,79 @@ for pointt in np.asarray(rest.points):
     #[k, idx, _] = pcd_tree.search_knn_vector_3d(pointt, 4)
     #check black point's neighbours
     arr = [0,0,0,0,0,0,0,0]
+    n = 0
     for i in np.asarray(pcl.points)[idx[1:], :]:
         #check which segments are around the current black point 
+        
         if (i in np.asarray(segments[0].points)) or  (i in np.asarray(segments[1].points)) :
             print("segment0")
             arr[0] = 1
+            n = 1
         if (i in np.asarray(segments[2].points)) or (i in np.asarray(segments[3].points)):
             print("segment1")
-            arr[1] =  1
+            arr[1] = 1
+            n = 1
         if (i in np.asarray(segments[4].points)) or (i in np.asarray(segments[5].points)):
             print("segment2")
-            arr[2] =  1
+            arr[2] = 1
+            n = 1
         if (i in np.asarray(segments[6].points)) or (i in np.asarray(segments[7].points)):
             print("segment3")
-            arr[3] =  1
+            arr[3] = 1
+            n = 1
         if (i in np.asarray(segments[8].points)) or (i in np.asarray(segments[9].points)):
             print("segment4")
-            arr[4] =  1
+            arr[4] = 1
+            n = 1
     print("---------------------------------------------")
     #completed the process for one black point
-    arr[5] = pointt[0]
-    arr[6] = pointt[1]
-    arr[7] = pointt[2]
-    #add processed black point neighbour's info to dic      
-    dic.append(arr) 
 
-x = len(dic)
-    
-arr = []
+    if n == 0:
+        blacks.append(pointt)
+ 
+    else:
+        arr[5] = pointt[0]
+        arr[6] = pointt[1]
+        arr[7] = pointt[2]
+    #add processed black point neighbour's info to dic      
+        dic.append(arr) 
+
+
+arr_ = []
 #compare each black points with other black point
 
-visited = [None] * len(dic)
-  
-for i in range(0,len(dic)):
-    visited[i] = False
+visited = [False] * len(dic)
 
+
+#for i in dic:
+#    print(i)
+#her siyah noktanın komşularıyla olan bilgileri var
 for i in range(0,len(dic)):
     point_ = []
-    
-    if not visited[i]:
+    #bakmadıysan bak
+    if visited[i]== False:
         visited[i] = True
-        print(dic[i])
+        n = 0
         point_.append([dic[i][5],dic[i][6],dic[i][7]])
-    for a in range(i+1,len(dic)):
-        if not visited[a]:
-            if (dic[i][0]==dic[a][0]) & (dic[i][1]==dic[a][1]) & (dic[i][2]==dic[a][2]) & (dic[i][3]==dic[a][3]) & (dic[i][4]==dic[a][4]):
-                point_.append([dic[a][5],dic[a][6],dic[a][7]])
-                visited[a] = True
-            
-    #holds black points have same neighbours
-    arr.append(point_)
+        for a in range(i+1,len(dic)):
+            if visited[a]== False:
+                if (dic[i][0]==dic[a][0]) & (dic[i][1]==dic[a][1]) & (dic[i][2]==dic[a][2]) & (dic[i][3]==dic[a][3]) & (dic[i][4]==dic[a][4]):
+                    point_.append([dic[a][5],dic[a][6],dic[a][7]])
+                    visited[a] = True
+                    n = 1
 
-
-    
-#paint each different segments 
+        #holds black points have same neighbours
+        if n==1:
+            arr_.append(point_)
+     
+                            
 x = 0
 y = 0
-#cl = [[0,1,0],[1,0,0],[0,0,1]]
-# i is segment
-for i in arr: 
+rest.paint_uniform_color([1, 1, 1])
+for i in arr_: 
     # a is black point
+    if len(i)<70:
+        continue
     for a in i:
         rest.points[x] = a
         rest.colors[x] = cl[y]
@@ -144,8 +165,64 @@ for i in arr:
     if y == 10:
         y=0
 
+o3d.visualization.draw_geometries([rest])        
+        
+x = []
+for i in range(0, len(np.asarray(rest.points))):
+    if ((np.asarray(rest.colors)[i])[0]==[1]) & ((np.asarray(rest.colors)[i])[1]==[1]) & ((np.asarray(rest.colors)[i])[2]==[1]):
+        x.append(rest.points[i])
+print(len(x))
 
 
-o3d.visualization.draw_geometries([rest])
 
+pcd_tree = o3d.geometry.KDTreeFlann(pcn)
+distances = np.max(pcn.compute_nearest_neighbor_distance())
+visited = [False] * len(x)
+a = 0
+while a!=(len(x)):
+    for i in range(0, len(x)):
+        if visited[i]==False:
+            [k, idx, _] = pcd_tree.search_radius_vector_3d(x[i], distances* (i+10))
+            #[k, idx, _] = pcd_tree.search_knn_vector_3d(blacks[i], 4)
+            
+            #check black point's neighbours
+            n =0
+            if len(np.asarray(pcn.points)[idx[1:], :])==0:
+                a+=1
+            for i_ in np.asarray(pcn.points)[idx[1:], :]:
+                
+                for b in range(0, len(arr_)):
+                    if n==0:
+                        #komşusu renkli mi 
+                        if i_ in np.asarray(arr_[b]):
+                            arr_[b].append(x[i])
+                            visited[i]=True
+                            a += 1
+                            n=1
+                            print(x[i])
+                        
+               
  
+print("finish")
+                           
+x = 0
+y = 0
+
+pcl = o3d.geometry.PointCloud()
+pcl.points = o3d.utility.Vector3dVector(np.random.randn(10000,3))
+pcl.paint_uniform_color([1, 1, 1])
+for i in arr_: 
+    # a is black point
+    for a in i:
+        pcl.points[x] = a
+        pcl.colors[x] = cl[y]
+        x += 1
+    #print(cll[y])
+    y +=1
+    if y == 10:
+        y=0
+
+o3d.visualization.draw_geometries([pcl])        
+
+
+
