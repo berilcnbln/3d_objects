@@ -11,7 +11,7 @@ import time
 import itertools
 from numpy.linalg import norm
 
-SOURCE_PCD =  o3d.io.read_triangle_mesh(r"/Users/beril/PycharmProjects/pythonProject2/files/3.ply")
+SOURCE_PCD =  o3d.io.read_triangle_mesh(r"/Users/beril/PycharmProjects/pythonProject2/files/15.ply")
 pcd = SOURCE_PCD.sample_points_poisson_disk(number_of_points = 10000)
 pcdd = copy.deepcopy(pcd)
 pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=16), fast_normal_computation=True)
@@ -172,6 +172,8 @@ y = 0
 #point index in cluster
 c_index = []
 n_pointclouds= []
+n_boundingbox = []
+n_hull = []
 rest.paint_uniform_color([1, 1, 1])
 for i in arr_: 
     # a is black point
@@ -181,6 +183,9 @@ for i in arr_:
     pcl = o3d.geometry.PointCloud()
     pcl.points = o3d.utility.Vector3dVector(np.random.randn(len(i),3))
     b = 0
+    if len(i)<30:
+        pass
+    
     for a in i:
         rest.points[x] = a
         pcl.points[b] = a
@@ -189,7 +194,13 @@ for i in arr_:
         rest.colors[x] = cl[y]
         x += 1
     #print(cll[y])
+    hull, _ = pcl.compute_convex_hull()
+    hull_ls = o3d.geometry.LineSet.create_from_triangle_mesh(hull)
+    box = hull_ls.get_axis_aligned_bounding_box()
     n_pointclouds.append(pcl)
+    n_boundingbox.append(box)
+    hull_ls.paint_uniform_color((1, 0, 0))
+    n_hull.append(hull_ls)
     c_index.append(c_i)
     y +=1
     if y == 10:
@@ -199,13 +210,6 @@ o3d.visualization.draw_geometries([rest])
 print("kaç cluster var ")
 print(len(n_pointclouds))
 
-
-for i in np.asarray(n_pointclouds[3].points):
-    print("one point cloud")
-    print(i)
-
-   
-    
     
 rest.normals = o3d.utility.Vector3dVector(np.zeros((1, 3)))
 rest.estimate_normals()
@@ -221,21 +225,46 @@ cosine = np.dot(rest.normals[ind],rest.normals[ind2])/(norm(rest.normals[ind])* 
 print("cosine:")
 print(round(cosine,0))
 
-o3d.visualization.draw_geometries([n_pointclouds[2]])   
+for x in range(0, len(n_pointclouds)):
+    #o3d.visualization.draw([n_pointclouds[x], n_hull[x]])
+    o3d.visualization.draw([n_pointclouds[x], n_boundingbox[x]]) 
+
+visited = [False] * len(np.asarray(n_pointclouds[2].points))
 lst = list(itertools.product(n_pointclouds[2].points, repeat=2))
-for i in lst:
-    ind = np.where(np.asarray(rest.points) == i[0])[0][0]
-    ind2 = np.where(np.asarray(rest.points) == i[1])[0][0]
-    cosine = np.dot(rest.normals[ind],rest.normals[ind2])/(norm(rest.normals[ind])*norm(rest.normals[ind2]))
+new_cluster=[]
+
+for i in range(0, len(np.asarray(n_pointclouds[2].points))):
+    liste = []
+    ind = np.where(np.asarray(rest.points) == n_pointclouds[2].points[i])[0][0]
+    x = 0
+    for a in range(0, len(np.asarray(n_pointclouds[2].points))):
+        ind2 = np.where(np.asarray(rest.points) == n_pointclouds[2].points[a])[0][0]
+        cosine = np.dot(rest.normals[ind],rest.normals[ind2])/(norm(rest.normals[ind])*norm(rest.normals[ind2]))
     #trashold ekle yuvarla 
-    if round(cosine,0)!=1:
-        print(round(cosine,0))
-        print(str(ind) + str("  ") + str(ind2))
-        
+        if round(cosine,0) != 1:
+            x += 1
+    if x > (len(np.asarray(n_pointclouds[2].points)) - x):
+        if ind not in new_cluster:
+            new_cluster.append(ind)
+
+          
+
+
+print("new cluster :") 
+print(new_cluster)
        
 
 
+pcx = o3d.geometry.PointCloud()
+pcx.points = o3d.utility.Vector3dVector(np.random.randn(len(new_cluster),3))   
+for i in range(0,len(new_cluster)):
+    pcx.points[i] = rest.points[new_cluster[i]]
+    
 
+if len(new_cluster)>0 :
+    o3d.visualization.draw_geometries([pcx])     
+    
+    
     
 start_time = time.time()
 x = []
@@ -249,8 +278,6 @@ finding_uncolored_colors = time.time() - start_time
 pcd_tree = o3d.geometry.KDTreeFlann(pcn)
 distances = np.min(pcn.compute_nearest_neighbor_distance())
 visited = [False] * len(x)
-
-
 
 
 
@@ -281,8 +308,6 @@ colored_black_points = time.time() - start_time
 print("finish")
  
 
-    
- 
 
 pcl = o3d.geometry.PointCloud()
 pcl.points = o3d.utility.Vector3dVector(np.random.randn(10000,3))
