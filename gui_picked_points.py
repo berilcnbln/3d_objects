@@ -6,6 +6,7 @@ import os
 import matplotlib.pyplot as plt
 
 world = []
+
 class ExampleApp:
 
     def __init__(self, cloud):
@@ -37,7 +38,7 @@ class ExampleApp:
         bounds = self.widget3d.scene.bounding_box
         center = bounds.get_center()
         self.widget3d.setup_camera(60, bounds, center)
-        self.widget3d.look_at(center, center - [0, 0, 3], [0, -1, 0])
+        #self.widget3d.look_at(center, center - [0, 0, 3], [0, -1, 0])
 
         self.widget3d.set_on_mouse(self._on_mouse_widget3d)
 
@@ -114,10 +115,8 @@ class ExampleApp:
                             segments[ind_segment].paint_uniform_color([0, 0, 1])
                             cloud_ = cloud + segments[ind_segment]
                             self.widget3d.scene.add_geometry(f"point {len(np.asarray(cloud_.points))}", cloud_, self.mat)
-                            bounds = self.widget3d.scene.bounding_box
-                            center = bounds.get_center()
-                            self.widget3d.setup_camera(60, bounds, center)
-                            self.widget3d.look_at(center, center - [0, 0, 3], [0, -1, 0])
+
+
 
 
                         print("y")
@@ -180,5 +179,7 @@ cluster_no = []
 ex = ExampleApp(cloud)
 
 app.run()
+
+
 
 
