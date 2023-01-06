@@ -43,14 +43,14 @@ import matplotlib.pyplot as plt
 class ExampleApp:
     o3d.visualization.webrtc_server.enable_webrtc()
     world = ""
-    n = 0
+
 
     def __init__(self, cloud):
         # We will create a SceneWidget that fills the entire window, and then
         # a label in the lower left on top of the SceneWidget to display the
         # coordinate.
         app = gui.Application.instance
-        self.n = 0
+
         self.window = app.create_window("Open3D - GetCoord Example", 1024, 768)
         # Since we want the label on top of the scene, we cannot use a layout,
         # so we need to manually layout the window's children.
@@ -63,10 +63,14 @@ class ExampleApp:
 
         self.window.add_child(self.info)
 
+        self.info2 = gui.Label("")
+        self.info2.visible = True
 
 
         self.widget3d.scene = rendering.Open3DScene(self.window.renderer)
-
+        self.cloud = cloud
+        self.segments = {}
+        self.max_plane_idx = 0
         mat = rendering.MaterialRecord()
         mat.shader = "defaultUnlit"
         # Point size is in native pixels, but "pixel" means different things to
@@ -77,12 +81,54 @@ class ExampleApp:
             cloud.paint_uniform_color([1, 0, 0])
 
         def show():
-            print("ksnkdnfknkzf")
-            self.button.text = "ON"
-            self.n = 1
+            self.button.text = "Clustering Mode On        Please Choose a Cluster              "
+
+            self.cloud.paint_uniform_color([0, 0, 1])
+            pcd = self.cloud
+            pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=16),
+                                 fast_normal_computation=True)
+            pcd.paint_uniform_color([0.6, 0.6, 0.6])
+            plane_model, inliers = pcd.segment_plane(distance_threshold=0.01, ransac_n=3, num_iterations=10000)
+            [a, b, c, d] = plane_model
+
+            inlier_cloud = pcd.select_by_index(inliers)
+            outlier_cloud = pcd.select_by_index(inliers, invert=True)
+            inlier_cloud.paint_uniform_color([1, 0, 0])
+            outlier_cloud.paint_uniform_color([0.6, 0.6, 0.6])
+            labels = np.array(pcd.cluster_dbscan(eps=0.05, min_points=10))
+
+            max_label = labels.max()
+            colors = plt.get_cmap("tab20")(labels / (max_label
+                                                     if max_label > 0 else 1))
+            colors[labels < 0] = 0
+            pcd.colors = o3d.utility.Vector3dVector(colors[:, :3])
+            segment_models = {}
+            segments2 = {}
+            max_plane_idx2 = 5
+            rest = pcd
+
+            for i in range(max_plane_idx2):
+                colors = plt.get_cmap("tab20")(i)
+                segment_models[i], inliers = rest.segment_plane(
+                    distance_threshold=0.01, ransac_n=3, num_iterations=10000)
+                segments2[i] = rest.select_by_index(inliers)
+                print("points")
+                print(segments2[i])
+                segments2[i].paint_uniform_color(list(colors[:3]))
+                self.cloud = self.cloud + segments2[i]
+                rest = rest.select_by_index(inliers, invert=True)
+                print("pass", i, "/", max_plane_idx2, "done.")
 
 
-        self.button = gui.Button("Clustered Mode")
+
+            self.segments = segments2
+            self.max_plane_idx = max_plane_idx2
+            self.widget3d.scene.add_geometry("Point Cloud2", self.cloud, mat)
+
+
+
+
+        self.button = gui.Button("             Clustering Mode           ")
         self.button.enabled = True
 
         self.button.visible = True
@@ -91,8 +137,7 @@ class ExampleApp:
         self.window.add_child(self.button)
 
 
-        self.widget3d.scene.add_geometry("Point Cloud", cloud, mat)
-
+        self.widget3d.scene.add_geometry("Point Cloud", self.cloud, mat)
 
 
 
@@ -170,23 +215,24 @@ class ExampleApp:
                     self.info.text = text
                     self.info.visible = (text != "")
                     n = [world[0], world[1], world[2]]
-                    d = ((np.asarray(cloud.points) - n) ** 2).sum(axis=1)
+                    d = ((np.asarray(self.cloud.points) - n) ** 2).sum(axis=1)
                     ndx = d.argsort()
+                    cluster_no = []
                     print("closest points")
-                    print(np.asarray(cloud.points)[ndx[:5]])
+                    print(np.asarray(self.cloud.points)[ndx[:5]])
                     if len(self.picked_points) != 0:
                         ind_segment = 0
 
-                        for ind_segment in range(0, max_plane_idx):
-                            if np.asarray(cloud.points)[ndx[:5]][0] in np.asarray(segments[ind_segment].points):
+                        for ind_segment in range(0, self.max_plane_idx):
+                            if np.asarray(self.cloud.points)[ndx[:5]][0] in np.asarray(self.segments[ind_segment].points):
                                 print(ind_segment)
                                 break
 
                         if ind_segment not in cluster_no:
                             cluster_no.append(ind_segment)
-                            if ind_segment < len(segments):
-                                segments[ind_segment].paint_uniform_color([0, 0, 1])
-                                cloud_ = cloud + segments[ind_segment]
+                            if ind_segment < len(self.segments):
+                                self.segments[ind_segment].paint_uniform_color([0, 0, 1])
+                                cloud_ = self.cloud + self.segments[ind_segment]
 
                                 mat = rendering.MaterialRecord()
                                 mat.shader = "defaultUnlit"
@@ -194,8 +240,9 @@ class ExampleApp:
                                 # different platforms (macOS, in particular), so multiply by Window scale
                                 # factor.
                                 mat.point_size = 3 * self.window.scaling
-                                self.widget3d.scene.add_geometry(f"point {len(np.asarray(cloud_.points))}", cloud_,
-                                                             mat)
+                                print("dönüşme kısmı")
+                                self.widget3d.scene.add_geometry(f"point {len(np.asarray(cloud_.points))}",
+                                                                 cloud_, mat)
 
 
                     # We are sizing the info label to be exactly the right size,
@@ -216,54 +263,11 @@ class ExampleApp:
 app = gui.Application.instance
 app.initialize()
 
-    # This example will also work with a triangle mesh, or any 3D object.
-    # If you use a triangle mesh you will probably want to set the material
-    # shader to "defaultLit" instead of "defaultUnlit".
-    #pcd_data = o3d.data.DemoICPPointClouds()
-    #cloud = o3d.io.read_point_cloud(pcd_data.paths[0])
+
 SOURCE_PCD = o3d.io.read_triangle_mesh(r"/Users/beril/PycharmProjects/pythonProject2/files/8.ply")
 cloud = SOURCE_PCD.sample_points_poisson_disk(number_of_points=10000)
-
-cloud.paint_uniform_color([0, 0, 1])
-pcd = cloud
-pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=16),
-                         fast_normal_computation=True)
-pcd.paint_uniform_color([0.6, 0.6, 0.6])
-plane_model, inliers = pcd.segment_plane(distance_threshold=0.01, ransac_n=3, num_iterations=10000)
-[a, b, c, d] = plane_model
-
-inlier_cloud = pcd.select_by_index(inliers)
-outlier_cloud = pcd.select_by_index(inliers, invert=True)
-inlier_cloud.paint_uniform_color([1, 0, 0])
-outlier_cloud.paint_uniform_color([0.6, 0.6, 0.6])
-labels = np.array(pcd.cluster_dbscan(eps=0.05, min_points=10))
-
-max_label = labels.max()
-colors = plt.get_cmap("tab20")(labels / (max_label
-                                             if max_label > 0 else 1))
-colors[labels < 0] = 0
-pcd.colors = o3d.utility.Vector3dVector(colors[:, :3])
-segment_models = {}
-segments = {}
-max_plane_idx = 5
-rest = pcd
-
-for i in range(max_plane_idx):
-    colors = plt.get_cmap("tab20")(i)
-    segment_models[i], inliers = rest.segment_plane(
-            distance_threshold=0.01, ransac_n=3, num_iterations=10000)
-    segments[i] = rest.select_by_index(inliers)
-    print("points")
-    print(segments[i])
-    segments[i].paint_uniform_color(list(colors[:3]))
-    cloud = cloud + segments[i]
-    rest = rest.select_by_index(inliers, invert=True)
-    print("pass", i, "/", max_plane_idx, "done.")
-
-cluster_no = []
-
-
 ex = ExampleApp(cloud)
+
 print(ex.world)
 app.run()
 
