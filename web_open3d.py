@@ -67,6 +67,22 @@ class ExampleApp:
         self.y = y
 
         self.picked_points = []
+        self.lbl = gui.Label("         Select Item")
+        self.lbl.enabled = True
+        self.lbl.visible = False
+        self.n = gui.Combobox()
+        self.n.visible = False
+        self.n.enabled = True
+        self.n.add_item('a')
+        self.n.add_item('b')
+        self.n.add_item('c')
+
+        def z(x,y):
+            print(x)
+            print(y)
+
+        self.n.set_on_selection_changed(z)
+
 
 
         self.window.add_child(self.info)
@@ -94,7 +110,8 @@ class ExampleApp:
 
         def clustering_mode():
             self.button.text = "               Clustering Mode On!              \n               Please Choose a Cluster                   "
-
+            self.n.visible = True
+            self.lbl.visible = True
             self.cloud.paint_uniform_color([0, 0, 1])
             pcd = self.cloud
             pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=16),
@@ -161,15 +178,14 @@ class ExampleApp:
             self.button3.set_on_clicked(outlier_mode)
 
 
-
             def f():
                 print("a")
 
 
-            self.textedit.enabled = True
-            self.textedit.visible = True
-            self.textedit.text_value = ""
-            self.textedit.placeholder_text = "  Enter "
+            #self.textedit.enabled = True
+            #self.textedit.visible = True
+            #self.textedit.text_value = ""
+            #self.textedit.placeholder_text = "  Enter "
 
 
 
@@ -214,6 +230,8 @@ class ExampleApp:
         self.window.add_child(self.button2)
         self.window.add_child(self.button3)
         self.window.add_child(self.textedit)
+        self.window.add_child(self.n)
+        self.window.add_child(self.lbl)
 
 
         self.mat.point_size = 5
@@ -233,7 +251,6 @@ class ExampleApp:
 
 
 
-
     def _on_layout(self, layout_context):
         r = self.window.content_rect
         self.widget3d.frame = r
@@ -244,6 +261,14 @@ class ExampleApp:
                                    r.get_bottom() - pref.height, pref.width,
                                    pref.height)
 
+
+
+        pref_ = self.n.calc_preferred_size(layout_context,
+                                             gui.Widget.Constraints())
+
+        self.n.frame = gui.Rect(r.x,
+                                   r.get_bottom() - pref_.height*10 - 300, pref_.width + 100,
+                                   pref_.height )
 
         print(layout_context)
         print(gui.Widget.Constraints())
@@ -257,17 +282,16 @@ class ExampleApp:
                                    pref3.height)
 
 
-        pref = self.textedit.calc_preferred_size(layout_context ,
-                                             gui.Widget.Constraints())
-        self.textedit.frame = gui.Rect(r.x ,
-                                   r.get_bottom() - pref.height*20 - 64 , pref3.width-1,
-                                   pref.height)
 
 
 
         self.button3.frame = gui.Rect(r.x,
-                                      r.get_bottom() - pref2.height *10 -200 , pref3.width-1,
+                                      r.get_bottom() - pref2.height *10 - 270 , pref3.width-1,
                                       pref2.height)
+
+        self.lbl.frame = gui.Rect(r.x,
+                                   r.get_bottom() - pref_.height*10 - 329 , pref_.width + 100,
+                                   pref_.height-10)
 
 
 
