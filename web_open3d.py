@@ -29,7 +29,10 @@ import open3d as o3d
 import open3d.visualization.gui as gui
 import open3d.visualization.rendering as rendering
 import os
+import copy
 import matplotlib.pyplot as plt
+import thinker as tk
+
 
 
 # This example displays a point cloud and if you Ctrl-click on a point
@@ -42,8 +45,8 @@ import matplotlib.pyplot as plt
 
 class ExampleApp:
     o3d.visualization.webrtc_server.enable_webrtc()
-    world = ""
 
+    world = ""
 
     def __init__(self, cloud):
         # We will create a SceneWidget that fills the entire window, and then
@@ -59,24 +62,33 @@ class ExampleApp:
         self.window.add_child(self.widget3d)
         self.info = gui.Label("")
         self.info.visible = False
+
         self.x = x
+        self.y = y
 
         self.picked_points = []
+
 
         self.window.add_child(self.info)
 
 
         self.widget3d.scene = rendering.Open3DScene(self.window.renderer)
         self.cloud = cloud
+        self.rest = self.cloud
+
+        self.textedit = gui.TextEdit()
+        self.textedit.visible = False
+        self.button3 = gui.Button("             Show Outlier            ")
+        self.button3.visible = False
         self.segments = {}
         self.max_plane_idx = 0
 
-        mat = rendering.MaterialRecord()
-        mat.shader = "defaultUnlit"
+        self.mat = rendering.MaterialRecord()
+        self.mat.shader = "defaultUnlit"
         # Point size is in native pixels, but "pixel" means different things to
         # different platforms (macOS, in particular), so multiply by Window scale
         # factor.
-        mat.point_size = 3 * self.window.scaling
+        #self.mat.point_size = 3 * self.window.scaling
         if len(self.picked_points) != 0:
             cloud.paint_uniform_color([1, 0, 0])
 
@@ -119,11 +131,46 @@ class ExampleApp:
                 rest = rest.select_by_index(inliers, invert=True)
                 print("pass", i, "/", max_plane_idx2, "done.")
 
-
-
+            self.rest = rest
             self.segments = segments2
             self.max_plane_idx = max_plane_idx2
-            self.widget3d.scene.add_geometry("Point Cloud2", self.cloud, mat)
+            self.widget3d.scene.add_geometry("Point Cloud2", self.cloud, self.mat)
+
+            def outlier_mode():
+                if (self.y % 2) == 0:
+                    self.button3.text = "         Outlier Mode  ON!            "
+                    cloud2 = copy.deepcopy(self.cloud)
+                    cloud2.paint_uniform_color([1, 1, 1])
+                    self.rest.paint_uniform_color([0, 0, 0])
+
+                    self.widget3d.scene.add_geometry(str(self.y), cloud2, self.mat)
+                    v = str(self.y) + "s"
+                    self.widget3d.scene.add_geometry(v, self.rest, self.mat)
+                else:
+                    self.button3.text = "             Show Outlier            "
+
+                    self.widget3d.scene.add_geometry(str(self.y), self.cloud, self.mat)
+                self.y += 1
+
+
+
+
+            self.button3.enabled = True
+
+            self.button3.visible = True
+            self.button3.set_on_clicked(outlier_mode)
+
+
+
+            def f():
+                print("a")
+
+
+            self.textedit.enabled = True
+            self.textedit.visible = True
+            self.textedit.text_value = ""
+            self.textedit.placeholder_text = "  Enter "
+
 
 
 
@@ -134,7 +181,8 @@ class ExampleApp:
                 hull_ls = o3d.geometry.LineSet.create_from_triangle_mesh(hull)
                 box = hull_ls.get_axis_aligned_bounding_box()
                 box.color = [1,0,0]
-                self.widget3d.scene.add_geometry(str(self.x), box, mat)
+                b = str(self.x) + "h"
+                self.widget3d.scene.add_geometry(b, box, self.mat)
 
             else:
                 self.button2.text = "             Bounding  Box           "
@@ -142,7 +190,8 @@ class ExampleApp:
                 hull_ls = o3d.geometry.LineSet.create_from_triangle_mesh(hull)
                 box = hull_ls.get_axis_aligned_bounding_box()
                 box.color = [1, 1, 1]
-                self.widget3d.scene.add_geometry(str(self.x), box, mat)
+                b = str(self.x) + "h"
+                self.widget3d.scene.add_geometry(b, box, self.mat)
             self.x +=1
 
 
@@ -163,8 +212,14 @@ class ExampleApp:
 
         self.window.add_child(self.button)
         self.window.add_child(self.button2)
+        self.window.add_child(self.button3)
+        self.window.add_child(self.textedit)
 
-        self.widget3d.scene.add_geometry("Point Cloud", self.cloud, mat)
+
+        self.mat.point_size = 5
+
+        self.widget3d.scene.add_geometry("Point Cloud", self.cloud , self.mat)
+
 
 
         bounds = self.widget3d.scene.bounding_box
@@ -178,29 +233,49 @@ class ExampleApp:
 
 
 
+
     def _on_layout(self, layout_context):
         r = self.window.content_rect
         self.widget3d.frame = r
-        pref = self.info.calc_preferred_size(layout_context,
+        pref = self.info.calc_preferred_size(layout_context ,
                                              gui.Widget.Constraints())
 
-
-        print(layout_context)
-        print(gui.Widget.Constraints())
-
-        self.button2.frame = gui.Rect(r.x ,
-                                   r.get_bottom() - pref.height*30 - 74 , pref.width*20 + 31,
-                                   pref.height)
         self.info.frame = gui.Rect(r.x,
                                    r.get_bottom() - pref.height, pref.width,
                                    pref.height)
 
 
+        print(layout_context)
+        print(gui.Widget.Constraints())
+        pref2 = self.button3.calc_preferred_size(layout_context,
+                                                gui.Widget.Constraints())
+        pref3 = self.button2.calc_preferred_size(layout_context ,
+                                             gui.Widget.Constraints())
+
+        self.button2.frame = gui.Rect(r.x ,
+                                   r.get_bottom() - pref3.height*10 - 375.7 , pref3.width-1,
+                                   pref3.height)
+
+
+        pref = self.textedit.calc_preferred_size(layout_context ,
+                                             gui.Widget.Constraints())
+        self.textedit.frame = gui.Rect(r.x ,
+                                   r.get_bottom() - pref.height*20 - 64 , pref3.width-1,
+                                   pref.height)
+
+
+
+        self.button3.frame = gui.Rect(r.x,
+                                      r.get_bottom() - pref2.height *10 -200 , pref3.width-1,
+                                      pref2.height)
+
+
+
+
+
     def _on_mouse_widget3d(self, event):
         # We could override BUTTON_DOWN without a modifier, but that would
         # interfere with manipulating the scene.
-
-
 
         if event.type == gui.MouseEvent.Type.BUTTON_DOWN and event.is_modifier_down(
                 gui.KeyModifier.CTRL):
@@ -267,14 +342,15 @@ class ExampleApp:
                                 self.segments[ind_segment].paint_uniform_color([0, 0, 1])
                                 cloud_ = self.cloud + self.segments[ind_segment]
 
-                                mat = rendering.MaterialRecord()
-                                mat.shader = "defaultUnlit"
+
+
+
                                 # Point size is in native pixels, but "pixel" means different things to
                                 # different platforms (macOS, in particular), so multiply by Window scale
                                 # factor.
-                                mat.point_size = 3 * self.window.scaling
+
                                 self.widget3d.scene.add_geometry(f"point {len(np.asarray(cloud_.points))}",
-                                                                 cloud_, mat)
+                                                                 cloud_, self.mat)
 
 
                     # We are sizing the info label to be exactly the right size,
@@ -296,8 +372,11 @@ app = gui.Application.instance
 app.initialize()
 
 x = 0
+y = 0
 SOURCE_PCD = o3d.io.read_triangle_mesh(r"/Users/beril/PycharmProjects/pythonProject2/files/8.ply")
 cloud = SOURCE_PCD.sample_points_poisson_disk(number_of_points=10000)
+
+
 ex = ExampleApp(cloud)
 
 print(ex.world)
