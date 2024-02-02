@@ -1,10 +1,3 @@
-file_reader.py igs dosyalarını ply dosyalarına dönüştürüyor. file_open'ı import ederek buradan igs dosyalarını alıyor.
+file_reader.py is converting IGS files to PLY files. It imports the file_open module to retrieve IGS files.
 
-
-
-boundry_classification.py clustering algoritmasını kullanarak oluşan şekilden siyah noktaların olduğu pointleri çekiyor. 
-rest burada cluster edildikten sonra, point cloud olarak siyah noktaları temsil ediyor.
-pcl point cloudun tamamını temsil ediyor.
-pcd_tree.search_radius_vector_3d(pointt, distances) metodu ile rest içindeki noktaların komşularını hesaplanıyor.
-komşularının hangi segmentte kaç tane olduğunu tutan arraylleri sonunda karşılaştırarak komşuları benzer veya aynı olan noktaları bir segmentte toplayıp aynı renge boyuyor.
-
+boundry_classification.py utilizes a clustering algorithm to extract points with black colors from a generated shape. After clustering, the script represents these black points as a point cloud. The pcd_tree.search_radius_vector_3d method is used in the 'rest' section to calculate the neighbors of points. By comparing arrays that store the number of neighbors in each segment, the script identifies points with similar or identical neighbors and groups them into segments, assigning them the same color.
